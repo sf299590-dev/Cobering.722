@@ -65,25 +65,25 @@ st.markdown("""
 # 2. INIT GEE (Versi Kunci Total: Kebal Gcloud di Cloud & Lokal)
 @st.cache_resource
 def init_ee():
-    # 1. Coba deteksi lingkungan Cloud (Format Secrets Streamlit)
-    if "client_email" in st.secrets and "private_key" in st.secrets:
-        try:
-            # Ambil string email dan bersihkan teks private_key dari double backslash
+    # 1. Coba deteksi lingkungan Cloud secara aman tanpa memicu error mleduk di lokal
+    try:
+        if hasattr(st, "secrets") and st.secrets.get("client_email") and st.secrets.get("private_key"):
             client_email = st.secrets["client_email"]
             raw_key = st.secrets["private_key"]
             
             # Memastikan karakter \n dibaca dengan benar sebagai baris baru oleh Google API
             private_key = raw_key.replace('\\n', '\n')
             
-            # Inisialisasi kredensial
+            # Inisialisasi kredensial Service Account untuk Server Cloud
             credentials = ee.ServiceAccountCredentials(client_email, key_data=private_key)
             ee.Initialize(credentials, project='coral-monitoring-prd')
-            return
-        except Exception as cloud_err:
-            st.error(f"Gagal Inisialisasi Cloud: {cloud_err}")
-            # Jika gagal, jangan langsung pasif, biarkan coba fallback ke bawah
+            return  # Sukses di cloud, langsung keluar fungsi
+    except Exception as cloud_err:
+            # st.warning(f"Gagal Inisialisasi Cloud: {cloud_err}. Mencoba fallback ke lokal...")
+            pass  # Kita ganti pakai pass agar dia silent/diam-diam saja saat fallback di lokal
 
     # 2. Opsi fallback otomatis khusus untuk Laptop Lokal (localhost)
+    # Ini yang bikin laptop lokal kamu lancar jaya pakai akun gcloud sendiri
     try:
         ee.Initialize(project='coral-monitoring-prd')
     except Exception:
