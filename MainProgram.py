@@ -60,31 +60,36 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. INIT GEE
-# 2. INIT GEE (Versi Anti-Gagal: Kebal Error Lokal & Cloud)
+
+# 2. INIT GEE (Versi Final Anti-Gcloud di Server)
 @st.cache_resource
 def init_ee():
-    # 1. Coba deteksi lingkungan Streamlit Cloud dulu
+    # 1. Coba deteksi lingkungan Cloud dulu (Format JSON murni di Secrets)
     try:
-        if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
+        if hasattr(st, "secrets") and "client_email" in st.secrets:
             credentials = ee.ServiceAccountCredentials(
-                st.secrets["gcp_service_account"]["client_email"],
-                st.secrets["gcp_service_account"]["private_key"]
+                st.secrets["client_email"],
+                st.secrets["private_key"]
             )
             ee.Initialize(credentials, project='coral-monitoring-prd')
-            return # Jika sukses di cloud, langsung keluar dari fungsi
-    except:
-        pass # Jika error di lokal saat membaca st.secrets, abaikan dan lanjut ke bawah
-        
-    # 2. Opsi fallback otomatis untuk Laptop Lokal (localhost)
+            return  # SANGAT PENTING: Kalau sukses di cloud, langsung stop di sini agar tidak turun ke bawah!
+    except Exception as cloud_err:
+        pass # Abaikan kalau di lokal memicu error saat membaca secrets
+
+    # 2. Opsi fallback khusus untuk Laptop Lokal (localhost)
     try:
         ee.Initialize(project='coral-monitoring-prd')
     except:
         try:
-            ee.Authenticate()
-            ee.Initialize(project='coral-monitoring-prd')
-        except Exception as e:
-            st.error(f"Gagal Inisialisasi Earth Engine Lokal: {e}")
+            # Di lokal kita pakai cara standard, tapi dibungkus biar tidak memengaruhi cloud
+            import os
+            if not os.environ.get('STREAMLIT_RUNTIME_MOCK_DOC_TEST'): 
+                ee.Authenticate()
+                ee.Initialize(project='coral-monitoring-prd')
+        except Exception as local_err:
+            st.error(f"Gagal Inisialisasi Earth Engine Lokal: {local_err}")
+
+init_ee()
 
 init_ee()
 # 3. SIDEBAR
