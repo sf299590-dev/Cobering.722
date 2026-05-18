@@ -65,22 +65,28 @@ st.markdown("""
 # 2. INIT GEE (Versi Kunci Total: Kebal Gcloud di Cloud & Lokal)
 @st.cache_resource
 def init_ee():
-    # 1. Coba deteksi lingkungan Cloud dulu (Format JSON murni di Secrets)
-    try:
-        if hasattr(st, "secrets") and "client_email" in st.secrets:
-            credentials = ee.ServiceAccountCredentials(
-                st.secrets["client_email"],
-                st.secrets["private_key"]
-            )
+    # 1. Coba deteksi lingkungan Cloud (Format Secrets Streamlit)
+    if "client_email" in st.secrets and "private_key" in st.secrets:
+        try:
+            # Ambil string email dan bersihkan teks private_key dari double backslash
+            client_email = st.secrets["client_email"]
+            raw_key = st.secrets["private_key"]
+            
+            # Memastikan karakter \n dibaca dengan benar sebagai baris baru oleh Google API
+            private_key = raw_key.replace('\\n', '\n')
+            
+            # Inisialisasi kredensial
+            credentials = ee.ServiceAccountCredentials(client_email, key_data=private_key)
             ee.Initialize(credentials, project='coral-monitoring-prd')
-            return 
-    except Exception as cloud_err:
-        pass
+            return
+        except Exception as cloud_err:
+            st.error(f"Gagal Inisialisasi Cloud: {cloud_err}")
+            # Jika gagal, jangan langsung pasif, biarkan coba fallback ke bawah
 
     # 2. Opsi fallback otomatis khusus untuk Laptop Lokal (localhost)
     try:
         ee.Initialize(project='coral-monitoring-prd')
-    except:
+    except Exception:
         try:
             ee.Authenticate()
             ee.Initialize(project='coral-monitoring-prd')
