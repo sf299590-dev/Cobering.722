@@ -61,7 +61,8 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 
-# 2. INIT GEE (Versi Final Anti-Gcloud di Server)
+
+# 2. INIT GEE (Versi Kunci Total: Kebal Gcloud di Cloud & Lokal)
 @st.cache_resource
 def init_ee():
     # 1. Coba deteksi lingkungan Cloud dulu (Format JSON murni di Secrets)
@@ -72,26 +73,23 @@ def init_ee():
                 st.secrets["private_key"]
             )
             ee.Initialize(credentials, project='coral-monitoring-prd')
-            return  # SANGAT PENTING: Kalau sukses di cloud, langsung stop di sini agar tidak turun ke bawah!
+            return 
     except Exception as cloud_err:
-        pass # Abaikan kalau di lokal memicu error saat membaca secrets
+        pass
 
-    # 2. Opsi fallback khusus untuk Laptop Lokal (localhost)
+    # 2. Opsi fallback otomatis khusus untuk Laptop Lokal (localhost)
     try:
         ee.Initialize(project='coral-monitoring-prd')
     except:
         try:
-            # Di lokal kita pakai cara standard, tapi dibungkus biar tidak memengaruhi cloud
-            import os
-            if not os.environ.get('STREAMLIT_RUNTIME_MOCK_DOC_TEST'): 
-                ee.Authenticate()
-                ee.Initialize(project='coral-monitoring-prd')
+            ee.Authenticate()
+            ee.Initialize(project='coral-monitoring-prd')
         except Exception as local_err:
             st.error(f"Gagal Inisialisasi Earth Engine Lokal: {local_err}")
 
 init_ee()
 
-init_ee()
+
 # 3. SIDEBAR
 with st.sidebar:
     st.title("COBERING-722")
