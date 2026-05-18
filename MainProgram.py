@@ -60,40 +60,27 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+
+
 # 2. INIT GEE (Versi Kunci Total: Kebal Gcloud di Cloud & Lokal)
 @st.cache_resource
-def init_ee():
-    # 1. Coba deteksi lingkungan Cloud secara aman
+def init_gee():
     try:
-        if hasattr(st, "secrets") and st.secrets.get("client_email") and st.secrets.get("private_key"):
-            client_email = st.secrets["client_email"]
-            raw_key = st.secrets["private_key"]
-            
-            # Memastikan karakter \n dibaca dengan benar sebagai baris baru
-            private_key = raw_key.replace('\\n', '\n')
-            
-            # Inisialisasi kredensial Service Account
-            credentials = ee.ServiceAccountCredentials(client_email, key_data=private_key)
-            
-            # WAJIB sertakan parameter project di sini untuk library GEE versi baru!
-            ee.Initialize(credentials, project='coral-monitoring-prd')
-            return  # Sukses di cloud, langsung keluar fungsi
-    except Exception as cloud_err:
-        # Jika ada error autentikasi rahasia, tampilkan infonya secara aman di log cloud
-        print(f"Detail error inisialisasi cloud: {cloud_err}")
-
-    # 2. Opsi fallback otomatis khusus untuk Laptop Lokal (localhost)
-    try:
-        ee.Initialize(project='coral-monitoring-prd')
-    except Exception:
+        # Percobaan 1: Menggunakan kredensial lokal (Berjalan lancar saat testing di VS Code)
+        ee.Initialize()
+    except Exception as e:
+        # Percobaan 2: Jika gagal (sedang di Streamlit Cloud), gunakan Service Account dari Secrets
         try:
-            ee.Authenticate()
-            ee.Initialize(project='coral-monitoring-prd')
-        except Exception as local_err:
-            st.error(f"Gagal Inisialisasi Earth Engine Lokal: {local_err}")
+            credentials = ee.ServiceAccountCredentials(
+                st.secrets["gcp_service_account"]["client_email"],
+                st.secrets["gcp_service_account"]["private_key"]
+            )
+            ee.Initialize(credentials)
+        except Exception as e2:
+            st.error(f"Gagal Inisialisasi Earth Engine: {e2}")
 
-init_ee()
-
+# Panggil fungsi inisialisasi di awal program sebelum fungsi GEE lainnya
+init_gee()
 
 # 3. SIDEBAR
 with st.sidebar:
