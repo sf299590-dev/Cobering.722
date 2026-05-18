@@ -61,16 +61,32 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # 2. INIT GEE
+# 2. INIT GEE (Versi Anti-Gagal: Kebal Error Lokal & Cloud)
 @st.cache_resource
 def init_ee():
+    # 1. Coba deteksi lingkungan Streamlit Cloud dulu
+    try:
+        if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
+            credentials = ee.ServiceAccountCredentials(
+                st.secrets["gcp_service_account"]["client_email"],
+                st.secrets["gcp_service_account"]["private_key"]
+            )
+            ee.Initialize(credentials, project='coral-monitoring-prd')
+            return # Jika sukses di cloud, langsung keluar dari fungsi
+    except:
+        pass # Jika error di lokal saat membaca st.secrets, abaikan dan lanjut ke bawah
+        
+    # 2. Opsi fallback otomatis untuk Laptop Lokal (localhost)
     try:
         ee.Initialize(project='coral-monitoring-prd')
     except:
-        ee.Authenticate()
-        ee.Initialize(project='coral-monitoring-prd')
+        try:
+            ee.Authenticate()
+            ee.Initialize(project='coral-monitoring-prd')
+        except Exception as e:
+            st.error(f"Gagal Inisialisasi Earth Engine Lokal: {e}")
 
 init_ee()
-
 # 3. SIDEBAR
 with st.sidebar:
     st.title("COBERING-722")
