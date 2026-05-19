@@ -64,23 +64,37 @@ st.markdown("""
 
 # 2. INIT GEE (Versi Kunci Total: Kebal Gcloud di Cloud & Lokal)
 @st.cache_resource
-def init_gee():
+def init_ee():
+    # 1. Coba deteksi lingkungan Cloud secara aman tanpa memicu error mleduk di lokal
     try:
-        # Percobaan 1: Menggunakan kredensial lokal (Berjalan lancar saat testing di VS Code)
-        ee.Initialize()
-    except Exception as e:
-        # Percobaan 2: Jika gagal (sedang di Streamlit Cloud), gunakan Service Account dari Secrets
-        try:
-            credentials = ee.ServiceAccountCredentials(
-                st.secrets["gcp_service_account"]["client_email"],
-                st.secrets["gcp_service_account"]["private_key"]
-            )
-            ee.Initialize(credentials)
-        except Exception as e2:
-            st.error(f"Gagal Inisialisasi Earth Engine: {e2}")
+        if hasattr(st, "secrets") and st.secrets.get("client_email") and st.secrets.get("private_key"):
+            client_email = st.secrets["client_email"]
+            raw_key = st.secrets["private_key"]
+            
+            # Memastikan karakter \n dibaca dengan benar sebagai baris baru oleh Google API
+            private_key = raw_key.replace('\\n', '\n')
+            
+            # Inisialisasi kredensial Service Account untuk Server Cloud
+            credentials = ee.ServiceAccountCredentials(client_email, key_data=private_key)
+            ee.Initialize(credentials, project='coral-monitoring-prd')
+            return  # Sukses di cloud, langsung keluar fungsi
+    except Exception as cloud_err:
+            # st.warning(f"Gagal Inisialisasi Cloud: {cloud_err}. Mencoba fallback ke lokal...")
+            pass  # Kita ganti pakai pass agar dia silent/diam-diam saja saat fallback di lokal
 
-# Panggil fungsi inisialisasi di awal program sebelum fungsi GEE lainnya
-init_gee()
+    # 2. Opsi fallback otomatis khusus untuk Laptop Lokal (localhost)
+    # Ini yang bikin laptop lokal kamu lancar jaya pakai akun gcloud sendiri
+    try:
+        ee.Initialize(project='coral-monitoring-prd')
+    except Exception:
+        try:
+            ee.Authenticate()
+            ee.Initialize(project='coral-monitoring-prd')
+        except Exception as local_err:
+            st.error(f"Gagal Inisialisasi Earth Engine Lokal: {local_err}")
+
+init_ee()
+
 
 # 3. SIDEBAR
 with st.sidebar:
